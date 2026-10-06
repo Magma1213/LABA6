@@ -64,18 +64,12 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
-            <Button Content="Копировать" Margin="0,0,4,0" Padding="4,1" Focusable="False"
-                    Command="ApplicationCommands.Copy"
-                    CommandTarget="{Binding ElementName=EditorText}" />
-            <Button Content="Вырезать" Margin="0,0,4,0" Padding="4,1" Focusable="False"
-                    Command="ApplicationCommands.Cut"
-                    CommandTarget="{Binding ElementName=EditorText}" />
-            <Button Content="Вставить" Padding="4,1" Focusable="False"
-                    Command="ApplicationCommands.Paste"
-                    CommandTarget="{Binding ElementName=EditorText}" />
+            <Button Content="Копировать" Margin="0,0,4,0" />
+            <Button Content="Вырезать" Margin="0,0,4,0" />
+            <Button Content="Вставить" />
         </StackPanel>
 
-        <TextBox x:Name="EditorText" Grid.Row="1"
+        <TextBox Grid.Row="1"
                  AcceptsReturn="True"
                  TextWrapping="Wrap"
                  VerticalScrollBarVisibility="Visible"
