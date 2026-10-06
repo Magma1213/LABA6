@@ -1,0 +1,63 @@
+<Window x:Class="RPM_8._2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RPM_8._2"
+        mc:Ignorable="d"
+        Title="Текстовый редактор"
+        SizeToContent="WidthAndHeight" ResizeMode="CanMinimize">
+
+    <Canvas x:Name="MyCanvas" Width="980" Height="560">
+
+        <!-- Пять одинаковых блоков: используется пользовательский элемент EditorBlock.
+             Расположены "полукругом"; чем дальше от центра, тем меньше размер,
+             больше наклон и прозрачнее блок. -->
+
+        <local:EditorBlock Canvas.Left="0" Canvas.Top="330" Opacity="0.45">
+            <local:EditorBlock.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.7" ScaleY="0.7" />
+                    <SkewTransform AngleY="18" />
+                </TransformGroup>
+            </local:EditorBlock.RenderTransform>
+        </local:EditorBlock>
+
+        <local:EditorBlock Canvas.Left="180" Canvas.Top="390" Opacity="0.7">
+            <local:EditorBlock.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.85" ScaleY="0.85" />
+                    <SkewTransform AngleY="12" />
+                </TransformGroup>
+            </local:EditorBlock.RenderTransform>
+        </local:EditorBlock>
+
+        <local:EditorBlock Canvas.Left="390" Canvas.Top="420" Opacity="1">
+            <local:EditorBlock.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="1" ScaleY="1" />
+                    <SkewTransform AngleY="0" />
+                </TransformGroup>
+            </local:EditorBlock.RenderTransform>
+        </local:EditorBlock>
+
+        <local:EditorBlock Canvas.Left="600" Canvas.Top="390" Opacity="0.7">
+            <local:EditorBlock.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.85" ScaleY="0.85" />
+                    <SkewTransform AngleY="-12" />
+                </TransformGroup>
+            </local:EditorBlock.RenderTransform>
+        </local:EditorBlock>
+
+        <local:EditorBlock Canvas.Left="780" Canvas.Top="330" Opacity="0.45">
+            <local:EditorBlock.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.7" ScaleY="0.7" />
+                    <SkewTransform AngleY="-18" />
+                </TransformGroup>
+            </local:EditorBlock.RenderTransform>
+        </local:EditorBlock>
+
+    </Canvas>
+</Window>
