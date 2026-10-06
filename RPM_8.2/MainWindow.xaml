@@ -10,10 +10,6 @@
 
     <Canvas x:Name="MyCanvas" Width="980" Height="560">
 
-        <!-- Пять одинаковых блоков: используется пользовательский элемент EditorBlock.
-             Расположены "полукругом"; чем дальше от центра, тем меньше размер,
-             больше наклон и прозрачнее блок. -->
-
         <local:EditorBlock Canvas.Left="0" Canvas.Top="330" Opacity="0.45">
             <local:EditorBlock.RenderTransform>
                 <TransformGroup>
