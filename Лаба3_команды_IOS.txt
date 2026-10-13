@@ -1,0 +1,69 @@
+! Лабораторная работа №3. Знакомство с командами IOS (Cisco Packet Tracer)
+! Последовательность команд по методичке, разделу 4. Вводить в CLI маршрутизаторов.
+
+! === Основные команды сетевого устройства ===
+! Router1: вкладка CLI, пользовательский режим
+Router>
+Router>?
+Router>enable
+Router#?
+Router#config terminal
+Router(config)#hostname Router1
+Router1(config)#enable password parol
+Router1(config)#exit
+Router1#disable
+Router1>en
+Password: parol   ! (при вводе символы не отображаются)
+
+! === Основные show-команды ===
+Router1#disable
+Router1>show ?
+Router1>show version
+Router1>show clock
+Router1>show flash
+Router1>show history
+! 5. стрелка вверх или Ctrl+P – предыдущая команда из буфера
+! 6. стрелка вниз или Ctrl+N – следующая команда из буфера
+Router1>show hosts
+Router1>show interfaces
+Router1>show sessions
+Router1>show terminal
+Router1>show users
+Router1>show controllers
+Router1>en
+Password: parol
+Router1#show ?
+Router1#write memory
+! или:
+Router1#copy run start
+Router1#show configuration
+! или:
+Router1#show running-config
+! в строке --More-- нажать пробел для следующей страницы
+Router1#show protocols
+
+! === Введение в конфигурацию интерфейсов ===
+Router1#conf t
+Router1(config)#interface FastEthernet0/0
+Router1(config-if)#?
+Router1(config-if)#exit
+Router1(config)#int fa0/0
+Router1(config-if)#no shutdown
+Router1(config-if)#description Ethernet interface on Router 1
+Router1(config-if)#end
+Router1#show interface
+
+! --- переключиться на вкладку CLI второго маршрутизатора (Router2) ---
+Router>enable
+Router#conf t
+Router(config)#hostname Router2
+Router2(config)#interface fa0/0
+Router2(config-if)#no shutdown
+
+! --- вернуться на вкладку CLI Router1 ---
+Router1#show controllers fa0/1
+Router1#conf t
+Router1(config)#int fa0/1
+Router1(config-if)#clock rate ?
+Router1(config-if)#clock rate 64000
+Router1(config-if)#no shut
