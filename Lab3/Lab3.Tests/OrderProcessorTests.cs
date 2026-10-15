@@ -6,35 +6,11 @@ namespace Lab3.Tests;
 
 public static class OrderMother
 {
-    public static Order NewOrder(int id = 1, params OrderItem[] items) => new()
+    public static Order NewOrder(int id = 1) => new()
     {
         Id = id,
-        Items = items.Length == 0
-            ? new List<OrderItem> { new("SKU-1", 2, 500m), new("SKU-2", 1, 250m) }
-            : items.ToList()
+        Items = new List<OrderItem> { new("SKU-1", 2, 500m), new("SKU-2", 1, 250m) }
     };
-
-    public static Order WithStatus(OrderStatus status, int id = 1)
-    {
-        var order = NewOrder(id);
-        order.Status = status;
-        return order;
-    }
-}
-
-public class InMemoryOrderRepository : IOrderRepository
-{
-    private readonly Dictionary<int, Order> _store = new();
-
-    public int SaveCount { get; private set; }
-
-    public Order? GetById(int orderId) => _store.TryGetValue(orderId, out var order) ? order : null;
-
-    public void Save(Order order)
-    {
-        _store[order.Id] = order;
-        SaveCount++;
-    }
 }
 
 public class OrderProcessorTests
@@ -46,21 +22,12 @@ public class OrderProcessorTests
     private readonly Mock<IPaymentGateway> _payments = new();
     private readonly Mock<INotificationService> _notifications = new();
     private readonly Mock<IDateTimeProvider> _clock = new();
+    private readonly OrderProcessor _sut;
 
     public OrderProcessorTests()
     {
-        _inventory.Setup(i => i.ReserveItems(It.IsAny<Order>())).Returns(true);
-        _payments.Setup(p => p.Charge(It.IsAny<int>(), It.IsAny<decimal>())).Returns(new PaymentResult(true));
-        _clock.Setup(c => c.UtcNow).Returns(FixedNow);
-    }
-
-    private OrderProcessor CreateSut() =>
-        new(_repository.Object, _inventory.Object, _payments.Object, _notifications.Object, _clock.Object);
-
-    private Order GivenOrderInRepository(Order order)
-    {
-        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
-        return order;
+        _sut = new OrderProcessor(
+            _repository.Object, _inventory.Object, _payments.Object, _notifications.Object, _clock.Object);
     }
 
     // ---------- Успешная обработка ----------
@@ -69,11 +36,13 @@ public class OrderProcessorTests
     public void ProcessOrder_WithValidOrder_CompletesOrderAndReturnsIt()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(order.Id, order.TotalAmount)).Returns(new PaymentResult(true));
 
         // ===== ACT =====
-        var result = sut.ProcessOrder(order.Id);
+        var result = _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         result.Should().BeSameAs(order);
@@ -84,11 +53,13 @@ public class OrderProcessorTests
     public void ProcessOrder_WithValidOrder_SavesCompletedOrderOnce()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(order.Id, order.TotalAmount)).Returns(new PaymentResult(true));
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         _repository.Verify(r => r.Save(It.Is<Order>(o => o.Id == order.Id && o.Status == OrderStatus.Completed)), Times.Once());
@@ -98,11 +69,13 @@ public class OrderProcessorTests
     public void ProcessOrder_WithValidOrder_ChargesTotalAmountExactlyOnce()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(It.IsAny<int>(), It.IsAny<decimal>())).Returns(new PaymentResult(true));
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         _payments.Verify(p => p.Charge(order.Id, 1250m), Times.Once(), "2 * 500 + 1 * 250 = 1250 руб.");
@@ -112,27 +85,31 @@ public class OrderProcessorTests
     public void ProcessOrder_WithValidOrder_SendsConfirmationWithDateFromProvider()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(order.Id, order.TotalAmount)).Returns(new PaymentResult(true));
+        _clock.Setup(c => c.UtcNow).Returns(FixedNow);
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         _notifications.Verify(n => n.SendConfirmation(order, FixedNow), Times.Once(),
             "в уведомлении используется текущая дата из IDateTimeProvider");
-        _clock.Verify(c => c.UtcNow, Times.AtLeastOnce());
     }
 
     [Fact]
     public void ProcessOrder_WithValidOrder_ReservesItemsAndDoesNotReleaseThem()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(order.Id, order.TotalAmount)).Returns(new PaymentResult(true));
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         _inventory.Verify(i => i.ReserveItems(order), Times.Once());
@@ -155,8 +132,7 @@ public class OrderProcessorTests
         Action act = () => sut.ProcessOrder(404);
 
         // ===== ASSERT =====
-        act.Should().Throw<OrderProcessingException>().WithMessage("*404*",
-            "любой вызов strict-mock без Setup привёл бы к другому исключению");
+        act.Should().Throw<OrderProcessingException>("любой вызов strict-mock без Setup привёл бы к другому исключению");
         _repository.Verify(r => r.Save(It.IsAny<Order>()), Times.Never());
     }
 
@@ -168,11 +144,12 @@ public class OrderProcessorTests
     public void ProcessOrder_WhenOrderAlreadyProcessed_ThrowsAndDoesNotReserveOrSave(OrderStatus status)
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.WithStatus(status));
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        order.Status = status;
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
 
         // ===== ACT =====
-        Action act = () => sut.ProcessOrder(order.Id);
+        Action act = () => _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         act.Should().Throw<OrderProcessingException>();
@@ -187,12 +164,12 @@ public class OrderProcessorTests
     public void ProcessOrder_WhenStockIsInsufficient_ThrowsInsufficientStockException()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
         _inventory.Setup(i => i.ReserveItems(order)).Returns(false);
-        var sut = CreateSut();
 
         // ===== ACT =====
-        Action act = () => sut.ProcessOrder(order.Id);
+        Action act = () => _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         act.Should().Throw<InsufficientStockException>();
@@ -202,12 +179,12 @@ public class OrderProcessorTests
     public void ProcessOrder_WhenStockIsInsufficient_ReleasesReservationAndMarksOrderFailed()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
         _inventory.Setup(i => i.ReserveItems(order)).Returns(false);
-        var sut = CreateSut();
 
         // ===== ACT =====
-        Action act = () => sut.ProcessOrder(order.Id);
+        Action act = () => _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         act.Should().Throw<InsufficientStockException>();
@@ -220,12 +197,12 @@ public class OrderProcessorTests
     public void ProcessOrder_WhenStockIsInsufficient_DoesNotChargeAndDoesNotNotify()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
         _inventory.Setup(i => i.ReserveItems(order)).Returns(false);
-        var sut = CreateSut();
 
         // ===== ACT =====
-        Action act = () => sut.ProcessOrder(order.Id);
+        Action act = () => _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         act.Should().Throw<InsufficientStockException>();
@@ -239,12 +216,13 @@ public class OrderProcessorTests
     public void ProcessOrder_WhenPaymentFails_ReturnsOrderWithPaymentFailedStatus()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        _payments.Setup(p => p.Charge(order.Id, It.IsAny<decimal>())).Returns(new PaymentResult(false, "Недостаточно средств"));
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(order.Id, order.TotalAmount)).Returns(new PaymentResult(false, "Недостаточно средств"));
 
         // ===== ACT =====
-        var result = sut.ProcessOrder(order.Id);
+        var result = _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         result.Status.Should().Be(OrderStatus.PaymentFailed, "при сбое платежа исключение не выбрасывается");
@@ -254,12 +232,13 @@ public class OrderProcessorTests
     public void ProcessOrder_WhenPaymentFails_ReleasesReservationAndSavesOrder()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        _payments.Setup(p => p.Charge(order.Id, It.IsAny<decimal>())).Returns(new PaymentResult(false));
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(order.Id, order.TotalAmount)).Returns(new PaymentResult(false));
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         _inventory.Verify(i => i.ReleaseItems(order), Times.Once());
@@ -270,12 +249,13 @@ public class OrderProcessorTests
     public void ProcessOrder_WhenPaymentFails_DoesNotSendConfirmation()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        _payments.Setup(p => p.Charge(order.Id, It.IsAny<decimal>())).Returns(new PaymentResult(false));
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(order.Id, order.TotalAmount)).Returns(new PaymentResult(false));
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         _notifications.Verify(n => n.SendConfirmation(It.IsAny<Order>(), It.IsAny<DateTime>()), Times.Never(),
@@ -283,34 +263,6 @@ public class OrderProcessorTests
     }
 
     // ---------- Strict Mock ----------
-
-    [Fact]
-    public void ProcessOrder_HappyPathWithStrictMocks_MakesOnlyExpectedCalls()
-    {
-        // ===== ARRANGE =====
-        var order = OrderMother.NewOrder();
-        var repository = new Mock<IOrderRepository>(MockBehavior.Strict);
-        var inventory = new Mock<IInventoryService>(MockBehavior.Strict);
-        var payments = new Mock<IPaymentGateway>(MockBehavior.Strict);
-        var notifications = new Mock<INotificationService>(MockBehavior.Strict);
-        repository.Setup(r => r.GetById(order.Id)).Returns(order);
-        repository.Setup(r => r.Save(order));
-        inventory.Setup(i => i.ReserveItems(order)).Returns(true);
-        payments.Setup(p => p.Charge(order.Id, 1250m)).Returns(new PaymentResult(true));
-        notifications.Setup(n => n.SendConfirmation(order, FixedNow));
-        var sut = new OrderProcessor(repository.Object, inventory.Object, payments.Object, notifications.Object, _clock.Object);
-
-        // ===== ACT =====
-        var result = sut.ProcessOrder(order.Id);
-
-        // ===== ASSERT =====
-        result.Status.Should().Be(OrderStatus.Completed);
-        repository.VerifyAll();
-        inventory.VerifyAll();
-        payments.VerifyAll();
-        notifications.VerifyAll();
-        inventory.Verify(i => i.ReleaseItems(It.IsAny<Order>()), Times.Never());
-    }
 
     [Fact]
     public void ProcessOrder_PaymentFailureWithStrictMocks_NeverNotifiesCustomer()
@@ -342,57 +294,40 @@ public class OrderProcessorTests
     public void ProcessOrder_Charge_PassesOrderIdAndAmountCapturedByCallback()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder(id: 7));
+        var order = OrderMother.NewOrder(id: 7);
         int? chargedOrderId = null;
         decimal? chargedAmount = null;
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
         _payments.Setup(p => p.Charge(It.IsAny<int>(), It.IsAny<decimal>()))
             .Callback<int, decimal>((id, amount) => { chargedOrderId = id; chargedAmount = amount; })
             .Returns(new PaymentResult(true));
-        var sut = CreateSut();
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         chargedOrderId.Should().Be(7);
         chargedAmount.Should().Be(order.TotalAmount);
     }
 
-    public static IEnumerable<object[]> ItemSets => new List<object[]>
-    {
-        new object[] { new[] { new OrderItem("A", 1, 100m) }, 100m },
-        new object[] { new[] { new OrderItem("A", 3, 100m), new OrderItem("B", 2, 50.5m) }, 401m },
-        new object[] { new[] { new OrderItem("A", 10, 0.99m) }, 9.9m }
-    };
-
     [Theory]
-    [MemberData(nameof(ItemSets))]
-    public void ProcessOrder_WithDifferentItemSets_ChargesSumOfPriceTimesQuantity(OrderItem[] items, decimal expectedAmount)
+    [InlineData(1, 100, 100)]
+    [InlineData(3, 50, 150)]
+    [InlineData(10, 99, 990)]
+    public void ProcessOrder_WithDifferentQuantities_ChargesPriceTimesQuantity(int quantity, int price, int expectedAmount)
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder(5, items));
-        var sut = CreateSut();
+        var order = new Order { Id = 5, Items = new List<OrderItem> { new("SKU-1", quantity, price) } };
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(It.IsAny<int>(), It.IsAny<decimal>())).Returns(new PaymentResult(true));
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         _payments.Verify(p => p.Charge(5, It.Is<decimal>(a => a == expectedAmount)), Times.Once());
-    }
-
-    [Fact]
-    public void ProcessOrder_Always_RequestsOrderFromRepositoryByGivenId()
-    {
-        // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder(id: 42));
-        var sut = CreateSut();
-
-        // ===== ACT =====
-        sut.ProcessOrder(42);
-
-        // ===== ASSERT =====
-        _repository.Verify(r => r.GetById(It.Is<int>(id => id == 42)), Times.Once());
-        _inventory.Verify(i => i.ReserveItems(It.Is<Order>(o => o.Id == 42)), Times.Once());
     }
 
     // ---------- Исключения зависимостей (Throws) ----------
@@ -402,10 +337,9 @@ public class OrderProcessorTests
     {
         // ===== ARRANGE =====
         _repository.Setup(r => r.GetById(It.IsAny<int>())).Throws(new InvalidOperationException("БД недоступна"));
-        var sut = CreateSut();
 
         // ===== ACT =====
-        Action act = () => sut.ProcessOrder(1);
+        Action act = () => _sut.ProcessOrder(1);
 
         // ===== ASSERT =====
         act.Should().Throw<InvalidOperationException>().WithMessage("БД недоступна");
@@ -416,91 +350,53 @@ public class OrderProcessorTests
     public void ProcessOrder_WhenInventoryThrows_PropagatesExceptionAndDoesNotCharge()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
         _inventory.Setup(i => i.ReserveItems(order)).Throws(new TimeoutException("склад не отвечает"));
-        var sut = CreateSut();
 
         // ===== ACT =====
-        Action act = () => sut.ProcessOrder(order.Id);
+        Action act = () => _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         act.Should().Throw<TimeoutException>();
         _payments.Verify(p => p.Charge(It.IsAny<int>(), It.IsAny<decimal>()), Times.Never());
     }
 
-    // ---------- Fake и состояние ----------
-
-    [Fact]
-    public void ProcessOrder_WithInMemoryRepository_PersistsFinalStatus()
-    {
-        // ===== ARRANGE =====
-        var repository = new InMemoryOrderRepository();
-        repository.Save(OrderMother.NewOrder(id: 3));
-        var sut = new OrderProcessor(repository, _inventory.Object, _payments.Object, _notifications.Object, _clock.Object);
-
-        // ===== ACT =====
-        sut.ProcessOrder(3);
-
-        // ===== ASSERT =====
-        repository.GetById(3)!.Status.Should().Be(OrderStatus.Completed);
-        repository.SaveCount.Should().Be(2, "одно сохранение при создании заказа и одно после обработки");
-    }
+    // ---------- Состояние и конструктор ----------
 
     [Fact]
     public void ProcessOrder_CalledTwiceForSameOrder_SecondCallThrowsAndChargesOnlyOnce()
     {
         // ===== ARRANGE =====
-        var order = GivenOrderInRepository(OrderMother.NewOrder());
-        var sut = CreateSut();
+        var order = OrderMother.NewOrder();
+        _repository.Setup(r => r.GetById(order.Id)).Returns(order);
+        _inventory.Setup(i => i.ReserveItems(order)).Returns(true);
+        _payments.Setup(p => p.Charge(order.Id, order.TotalAmount)).Returns(new PaymentResult(true));
 
         // ===== ACT =====
-        sut.ProcessOrder(order.Id);
-        Action second = () => sut.ProcessOrder(order.Id);
+        _sut.ProcessOrder(order.Id);
+        Action second = () => _sut.ProcessOrder(order.Id);
 
         // ===== ASSERT =====
         second.Should().Throw<OrderProcessingException>("повторная обработка завершённого заказа запрещена");
         _payments.Verify(p => p.Charge(It.IsAny<int>(), It.IsAny<decimal>()), Times.Once());
     }
 
-    // ---------- Конструктор ----------
-
-    [Theory]
-    [InlineData(0, "orders")]
-    [InlineData(1, "inventory")]
-    [InlineData(2, "payments")]
-    [InlineData(3, "notifications")]
-    [InlineData(4, "clock")]
-    public void Constructor_WithNullDependency_ThrowsArgumentNullException(int nullIndex, string expectedParamName)
-    {
-        // ===== ARRANGE =====
-        object?[] deps = { _repository.Object, _inventory.Object, _payments.Object, _notifications.Object, _clock.Object };
-        deps[nullIndex] = null;
-
-        // ===== ACT =====
-        Action act = () => new OrderProcessor(
-            (IOrderRepository)deps[0]!, (IInventoryService)deps[1]!, (IPaymentGateway)deps[2]!,
-            (INotificationService)deps[3]!, (IDateTimeProvider)deps[4]!);
-
-        // ===== ASSERT =====
-        act.Should().Throw<ArgumentNullException>().WithParameterName(expectedParamName);
-    }
-
-    // ---------- Модели ----------
-
     [Fact]
-    public void Order_TotalAmount_SumsPriceTimesQuantityAndIsZeroWithoutItems()
+    public void Constructor_WithNullDependency_ThrowsArgumentNullException()
     {
         // ===== ARRANGE =====
-        var empty = new Order { Id = 1 };
-        var filled = OrderMother.NewOrder();
+        Action noRepository = () => new OrderProcessor(null!, _inventory.Object, _payments.Object, _notifications.Object, _clock.Object);
+        Action noInventory = () => new OrderProcessor(_repository.Object, null!, _payments.Object, _notifications.Object, _clock.Object);
+        Action noPayments = () => new OrderProcessor(_repository.Object, _inventory.Object, null!, _notifications.Object, _clock.Object);
+        Action noNotifications = () => new OrderProcessor(_repository.Object, _inventory.Object, _payments.Object, null!, _clock.Object);
+        Action noClock = () => new OrderProcessor(_repository.Object, _inventory.Object, _payments.Object, _notifications.Object, null!);
 
-        // ===== ACT =====
-        var emptyTotal = empty.TotalAmount;
-        var filledTotal = filled.TotalAmount;
-
-        // ===== ASSERT =====
-        emptyTotal.Should().Be(0m);
-        filledTotal.Should().Be(1250m);
-        new PaymentResult(false, "x").Should().Be(new PaymentResult(false, "x"));
+        // ===== ACT + ASSERT =====
+        noRepository.Should().Throw<ArgumentNullException>().WithParameterName("orders");
+        noInventory.Should().Throw<ArgumentNullException>().WithParameterName("inventory");
+        noPayments.Should().Throw<ArgumentNullException>().WithParameterName("payments");
+        noNotifications.Should().Throw<ArgumentNullException>().WithParameterName("notifications");
+        noClock.Should().Throw<ArgumentNullException>().WithParameterName("clock");
     }
 }

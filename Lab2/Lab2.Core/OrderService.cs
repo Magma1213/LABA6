@@ -76,7 +76,7 @@ public class OrderService
             return 0m;
         }
 
-        switch (promoCode.Trim().ToUpperInvariant())
+        switch (promoCode)
         {
             case "WELCOME10":
                 if (isLoyalCustomer)
