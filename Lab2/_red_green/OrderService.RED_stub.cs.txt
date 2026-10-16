@@ -1,0 +1,9 @@
+namespace Lab2.Core;
+
+public class OrderService
+{
+    public OrderResult CalculateTotal(IReadOnlyList<OrderItem> items, bool isLoyalCustomer, string? promoCode)
+    {
+        throw new NotImplementedException();
+    }
+}
