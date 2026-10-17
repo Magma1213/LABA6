@@ -294,7 +294,7 @@ var assemblies = [
       { "name": "Lab3.Core.Order", "rp": "Lab3.Core_Order.html", "cl": 4, "ucl": 0, "cal": 4, "tl": 25, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "Lab3.Core.OrderItem", "rp": "Lab3.Core_OrderItem.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 25, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "Lab3.Core.OrderProcessingException", "rp": "Lab3.Core_OrderProcessingException.html", "cl": 3, "ucl": 0, "cal": 3, "tl": 15, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "Lab3.Core.OrderProcessor", "rp": "Lab3.Core_OrderProcessor.html", "cl": 39, "ucl": 0, "cal": 39, "tl": 63, "cb": 18, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "Lab3.Core.OrderProcessor", "rp": "Lab3.Core_OrderProcessor.html", "cl": 44, "ucl": 0, "cal": 44, "tl": 73, "cb": 18, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "Lab3.Core.PaymentResult", "rp": "Lab3.Core_PaymentResult.html", "cl": 1, "ucl": 0, "cal": 1, "tl": 25, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];

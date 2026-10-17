@@ -24,6 +24,31 @@ public class OrderProcessor
 
     public Order ProcessOrder(int orderId)
     {
+        var order = GetNewOrder(orderId);
+
+        if (!_inventory.ReserveItems(order))
+        {
+            Reject(order, OrderStatus.Failed);
+            throw new InsufficientStockException($"Недостаточно товаров на складе для заказа {orderId}.");
+        }
+
+        var payment = _payments.Charge(order.Id, order.TotalAmount);
+
+        if (!payment.Success)
+        {
+            Reject(order, OrderStatus.PaymentFailed);
+            return order;
+        }
+
+        order.Status = OrderStatus.Completed;
+        _orders.Save(order);
+        _notifications.SendConfirmation(order, _clock.UtcNow);
+
+        return order;
+    }
+
+    private Order GetNewOrder(int orderId)
+    {
         var order = _orders.GetById(orderId);
 
         if (order == null)
@@ -36,28 +61,13 @@ public class OrderProcessor
             throw new OrderProcessingException($"Заказ {orderId} уже обработан (статус {order.Status}).");
         }
 
-        if (!_inventory.ReserveItems(order))
-        {
-            _inventory.ReleaseItems(order);
-            order.Status = OrderStatus.Failed;
-            _orders.Save(order);
-            throw new InsufficientStockException($"Недостаточно товаров на складе для заказа {orderId}.");
-        }
-
-        var payment = _payments.Charge(order.Id, order.TotalAmount);
-
-        if (!payment.Success)
-        {
-            _inventory.ReleaseItems(order);
-            order.Status = OrderStatus.PaymentFailed;
-            _orders.Save(order);
-            return order;
-        }
-
-        order.Status = OrderStatus.Completed;
-        _orders.Save(order);
-        _notifications.SendConfirmation(order, _clock.UtcNow);
-
         return order;
+    }
+
+    private void Reject(Order order, OrderStatus status)
+    {
+        _inventory.ReleaseItems(order);
+        order.Status = status;
+        _orders.Save(order);
     }
 }

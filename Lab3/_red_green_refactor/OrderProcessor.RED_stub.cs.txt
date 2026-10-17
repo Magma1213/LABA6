@@ -1,0 +1,18 @@
+namespace Lab3.Core;
+
+public class OrderProcessor
+{
+    public OrderProcessor(
+        IOrderRepository orders,
+        IInventoryService inventory,
+        IPaymentGateway payments,
+        INotificationService notifications,
+        IDateTimeProvider clock)
+    {
+    }
+
+    public Order ProcessOrder(int orderId)
+    {
+        throw new NotImplementedException();
+    }
+}

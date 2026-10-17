@@ -1,0 +1,28 @@
+Summary
+  Generated on: 10/17/2026 - 06:54:38
+  Coverage date: 10/17/2026 - 06:54:37
+  Parser: Cobertura
+  Assemblies: 1
+  Classes: 6
+  Files: 3
+  Line coverage: 100%
+  Covered lines: 56
+  Uncovered lines: 0
+  Coverable lines: 56
+  Total lines: 113
+  Branch coverage: 100% (18 of 18)
+  Covered branches: 18
+  Total branches: 18
+  Method coverage: 100% (12 of 12)
+  Full method coverage: 100% (12 of 12)
+  Covered methods: 12
+  Fully covered methods: 12
+  Total methods: 12
+
+Lab3.Core                                 100%
+  Lab3.Core.InsufficientStockException    100%
+  Lab3.Core.Order                         100%
+  Lab3.Core.OrderItem                     100%
+  Lab3.Core.OrderProcessingException      100%
+  Lab3.Core.OrderProcessor                100%
+  Lab3.Core.PaymentResult                 100%
